@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SaaS削減コストシミュレーター | Lark</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+    background: #f0f2f5;
+    color: #1e1e1e;
+    min-height: 100vh;
+  }
+
+  .page { max-width: 680px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+
+  /* Header */
+  .header { margin-bottom: 2rem; }
+  .header-badge { display: inline-block; background: #e8f9f4; color: #00956f; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; margin-bottom: 10px; }
+  .header-title { font-size: 22px; font-weight: 700; color: #1e1e1e; line-height: 1.4; margin-bottom: 8px; }
+  .header-desc { font-size: 13px; color: #666; line-height: 1.7; }
+
+  /* Progress */
+  .progress-bar { display: flex; align-items: center; gap: 0; margin-bottom: 2rem; }
+  .prog-step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .prog-circle { width: 28px; height: 28px; border-radius: 50%; background: #dde0e6; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #999; transition: all 0.2s; }
+  .prog-circle.active { background: #1e1e1e; color: #fff; }
+  .prog-circle.done { background: #00b89f; color: #fff; }
+  .prog-label { font-size: 10px; color: #aaa; white-space: nowrap; }
+  .prog-label.active { color: #1e1e1e; font-weight: 600; }
+  .prog-line { flex: 1; height: 1px; background: #dde0e6; margin-bottom: 16px; }
+  .prog-line.done { background: #00b89f; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* Panel */
+  .panel { background: #fff; border-radius: 14px; padding: 1.5rem; margin-bottom: 1rem; }
+  .panel-title { font-size: 15px; font-weight: 700; color: #1e1e1e; margin-bottom: 4px; }
+  .panel-sub { font-size: 12px; color: #888; margin-bottom: 1.25rem; }
+
+  /* Category */
+  .cat { margin-bottom: 1.25rem; }
+  .cat:last-of-type { margin-bottom: 0; }
+  .cat-head { font-size: 11px; font-weight: 700; color: #aaa; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
+
+  /* Tool rows (list style) */
+  .tool-row { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: 8px; cursor: pointer; transition: background 0.12s; user-select: none; }
+  .tool-row:hover { background: #f5f7fa; }
+  .tool-row.selected { background: #f0fdf9; }
+  .tool-check-box { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid #ccc; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.12s; }
+  .tool-row.selected .tool-check-box { background: #00b89f; border-color: #00b89f; }
+  .tool-check-icon { width: 10px; height: 10px; fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; display: none; }
+  .tool-row.selected .tool-check-icon { display: block; }
+  .tool-info { flex: 1; }
+  .tool-name { font-size: 13px; font-weight: 600; color: #1e1e1e; }
+  .tool-desc { font-size: 11px; color: #aaa; margin-top: 1px; }
+  .tool-price-tag { font-size: 12px; font-weight: 600; color: #555; white-space: nowrap; }
+
+  /* Industry buttons */
+  .ind-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+  .ind-btn { border: 1.5px solid #e0e3e8; border-radius: 10px; padding: 14px 8px; text-align: center; cursor: pointer; background: #fff; font-size: 13px; font-weight: 500; color: #444; transition: all 0.12s; user-select: none; line-height: 1.3; }
+  .ind-btn:hover { border-color: #aaa; background: #fafafa; }
+  .ind-btn.selected { border-color: #1e1e1e; background: #1e1e1e; color: #fff; }
+
+  /* Slider */
+  .slider-wrap { margin-bottom: 0.5rem; }
+  .slider-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .slider-label { font-size: 13px; color: #555; }
+  .slider-val { font-size: 28px; font-weight: 700; color: #1e1e1e; }
+  .slider-val span { font-size: 14px; font-weight: 500; color: #888; margin-left: 2px; }
+  input[type=range] {
+    width: 100%; -webkit-appearance: none; height: 5px; border-radius: 3px;
+    background: linear-gradient(to right, #1e1e1e 0%, #1e1e1e var(--val,5.8%), #e0e3e8 var(--val,5.8%), #e0e3e8 100%);
+    outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #1e1e1e; cursor: pointer; }
+  input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #1e1e1e; cursor: pointer; border: none; }
+  .slider-hint { display: flex; justify-content: space-between; font-size: 11px; color: #bbb; margin-top: 6px; }
+
+  /* Nav */
+  .nav { display: flex; gap: 8px; margin-top: 1.5rem; }
+  .btn-back { flex: 1; padding: 13px; border: 1.5px solid #d8dbe0; border-radius: 10px; background: transparent; font-size: 14px; cursor: pointer; color: #666; font-family: inherit; }
+  .btn-back:hover { background: #f5f5f5; }
+  .btn-next { flex: 2; padding: 13px; border-radius: 10px; background: #1e1e1e; border: none; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 0.3px; }
+  .btn-next:hover { background: #333; }
+
+  /* Result */
+  .result-banner { background: #1e1e1e; border-radius: 14px; padding: 2rem; margin-bottom: 1rem; color: #fff; }
+  .result-banner-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #00b89f; margin-bottom: 8px; text-transform: uppercase; }
+  .result-banner-amount { font-size: 48px; font-weight: 700; letter-spacing: -2px; line-height: 1; margin-bottom: 8px; }
+  .result-banner-amount em { font-size: 18px; font-weight: 400; letter-spacing: 0; font-style: normal; vertical-align: middle; margin-right: 4px; }
+  .result-banner-sub { font-size: 13px; color: #aaa; }
+  .result-banner-sub strong { color: #00b89f; }
+
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+  .result-tile { background: #fff; border-radius: 12px; padding: 1rem 1.1rem; }
+  .result-tile-label { font-size: 11px; color: #aaa; margin-bottom: 4px; }
+  .result-tile-val { font-size: 20px; font-weight: 700; color: #1e1e1e; }
+  .result-tile-val.accent { color: #00b89f; }
+
+  .compare-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+  .compare-box { background: #fff; border-radius: 12px; padding: 1rem; }
+  .compare-box.lark { background: #f0fdf9; border: 1.5px solid #00b89f; }
+  .compare-box-label { font-size: 10px; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .compare-box-amount { font-size: 22px; font-weight: 700; color: #1e1e1e; }
+  .compare-box.lark .compare-box-amount { color: #00b89f; }
+  .compare-box-unit { font-size: 11px; color: #aaa; margin-top: 2px; margin-bottom: 8px; }
+  .item-row { display: flex; justify-content: space-between; font-size: 12px; color: #666; padding: 3px 0; border-bottom: 1px solid #f3f3f3; }
+  .item-row:last-child { border-bottom: none; }
+  .feat-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .feat-tag { font-size: 10px; background: #e8f9f4; color: #00875f; padding: 3px 7px; border-radius: 20px; font-weight: 500; }
+
+  .note-box { background: #fff; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 0.75rem; font-size: 13px; color: #555; line-height: 1.7; }
+  .note-box strong { color: #1e1e1e; }
+  .warn-box { background: #fffbeb; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 0.75rem; font-size: 13px; color: #78350f; line-height: 1.7; }
+
+  .btn-restart { width: 100%; padding: 12px; border: 1.5px solid #d8dbe0; border-radius: 10px; background: transparent; color: #888; font-size: 13px; cursor: pointer; font-family: inherit; margin-top: 4px; }
+  .btn-restart:hover { background: #f5f5f5; }
+
+  @media (max-width: 480px) {
+    .ind-grid { grid-template-columns: repeat(2, 1fr); }
+    .result-banner-amount { font-size: 36px; }
+    .compare-wrap { grid-template-columns: 1fr; }
+    .result-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-badge">POWERED BY LARK</div>
+    <div class="header-title">SaaSコスト、まとめて削減できます</div>
+    <div class="header-desc">今使っているツールを選ぶだけで、Larkに切り替えたときの削減額を自動計算します。<br>所要時間 約1分。</div>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-bar">
+    <div class="prog-step">
+      <div class="prog-circle active" id="pc0">1</div>
+      <div class="prog-label active" id="pl0">ツール選択</div>
+    </div>
+    <div class="prog-line" id="pline0"></div>
+    <div class="prog-step">
+      <div class="prog-circle" id="pc1">2</div>
+      <div class="prog-label" id="pl1">人数</div>
+    </div>
+    <div class="prog-line" id="pline1"></div>
+    <div class="prog-step">
+      <div class="prog-circle" id="pc2">3</div>
+      <div class="prog-label" id="pl2">結果</div>
+    </div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="screen active" id="s0">
+    <div class="panel">
+      <div class="panel-title">現在導入しているツールを教えてください</div>
+      <div class="panel-sub">該当するものをすべて選択してください（複数可）</div>
+
+      <div class="cat">
+        <div class="cat-head">💬 チャット・コミュニケーション</div>
+        <div class="tool-row" data-id="slack" data-price="900">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Slack</div><div class="tool-desc">ビジネスチャット</div></div>
+          <div class="tool-price-tag">¥900/人/月</div>
+        </div>
+        <div class="tool-row" data-id="teams" data-price="750">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Microsoft Teams</div><div class="tool-desc">ビジネスチャット・会議</div></div>
+          <div class="tool-price-tag">¥750/人/月</div>
+        </div>
+        <div class="tool-row" data-id="chatwork" data-price="700">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Chatwork</div><div class="tool-desc">ビジネスチャット</div></div>
+          <div class="tool-price-tag">¥700/人/月</div>
+        </div>
+      </div>
+
+      <div class="cat">
+        <div class="cat-head">📹 ビデオ会議</div>
+        <div class="tool-row" data-id="zoom" data-price="2200">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Zoom</div><div class="tool-desc">オンライン会議</div></div>
+          <div class="tool-price-tag">¥2,200/人/月</div>
+        </div>
+        <div class="tool-row" data-id="gmeet" data-price="1360">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Google Meet</div><div class="tool-desc">オンライン会議</div></div>
+          <div class="tool-price-tag">¥1,360/人/月</div>
+        </div>
+        <div class="tool-row" data-id="webex" data-price="1800">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Webex</div><div class="tool-desc">オンライン会議</div></div>
+          <div class="tool-price-tag">¥1,800/人/月</div>
+        </div>
+      </div>
+
+      <div class="cat">
+        <div class="cat-head">📄 ドキュメント・業務ツール</div>
+        <div class="tool-row" data-id="notion" data-price="1600">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Notion</div><div class="tool-desc">ドキュメント・ノート</div></div>
+          <div class="tool-price-tag">¥1,600/人/月</div>
+        </div>
+        <div class="tool-row" data-id="m365" data-price="1560">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Microsoft 365</div><div class="tool-desc">Office・クラウドスイート</div></div>
+          <div class="tool-price-tag">¥1,560/人/月</div>
+        </div>
+        <div class="tool-row" data-id="gworkspace" data-price="1360">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Google Workspace</div><div class="tool-desc">Gmailほかクラウドスイート</div></div>
+          <div class="tool-price-tag">¥1,360/人/月</div>
+        </div>
+        <div class="tool-row" data-id="confluence" data-price="800">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Confluence</div><div class="tool-desc">社内Wiki・ドキュメント管理</div></div>
+          <div class="tool-price-tag">¥800/人/月</div>
+        </div>
+      </div>
+
+      <div class="cat">
+        <div class="cat-head">✅ タスク・プロジェクト管理</div>
+        <div class="tool-row" data-id="asana" data-price="1650">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Asana</div><div class="tool-desc">プロジェクト管理</div></div>
+          <div class="tool-price-tag">¥1,650/人/月</div>
+        </div>
+        <div class="tool-row" data-id="trello" data-price="600">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Trello</div><div class="tool-desc">カンバン型タスク管理</div></div>
+          <div class="tool-price-tag">¥600/人/月</div>
+        </div>
+        <div class="tool-row" data-id="monday" data-price="1800">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Monday.com</div><div class="tool-desc">プロジェクト管理</div></div>
+          <div class="tool-price-tag">¥1,800/人/月</div>
+        </div>
+        <div class="tool-row" data-id="jira" data-price="900">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Jira</div><div class="tool-desc">開発・課題管理</div></div>
+          <div class="tool-price-tag">¥900/人/月</div>
+        </div>
+      </div>
+
+      <div class="cat">
+        <div class="cat-head">☁️ ストレージ</div>
+        <div class="tool-row" data-id="dropbox" data-price="1500">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Dropbox</div><div class="tool-desc">クラウドストレージ</div></div>
+          <div class="tool-price-tag">¥1,500/人/月</div>
+        </div>
+        <div class="tool-row" data-id="box" data-price="1700">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">Box</div><div class="tool-desc">クラウドストレージ</div></div>
+          <div class="tool-price-tag">¥1,700/人/月</div>
+        </div>
+        <div class="tool-row" data-id="onedrive" data-price="740">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">OneDrive</div><div class="tool-desc">クラウドストレージ</div></div>
+          <div class="tool-price-tag">¥740/人/月</div>
+        </div>
+      </div>
+
+      <div class="cat">
+        <div class="cat-head">👥 人事・勤怠管理</div>
+        <div class="tool-row" data-id="jinjer" data-price="400">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">jinjer</div><div class="tool-desc">統合型人事システム</div></div>
+          <div class="tool-price-tag">¥400/人/月〜</div>
+        </div>
+        <div class="tool-row" data-id="kingtime" data-price="300">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">KING OF TIME</div><div class="tool-desc">勤怠管理</div></div>
+          <div class="tool-price-tag">¥300/人/月</div>
+        </div>
+        <div class="tool-row" data-id="jobcan" data-price="200">
+          <div class="tool-check-box"><svg class="tool-check-icon" viewBox="0 0 12 10"><polyline points="1,5 4,8 11,1"/></svg></div>
+          <div class="tool-info"><div class="tool-name">ジョブカン勤怠</div><div class="tool-desc">勤怠管理</div></div>
+          <div class="tool-price-tag">¥200/人/月〜</div>
+        </div>
+      </div>
+
+      <div class="nav">
+        <button class="btn-next" onclick="goNext()">次のステップへ →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="screen" id="s1">
+    <div class="panel">
+      <div class="panel-title">利用する従業員の人数を入力してください</div>
+      <div class="panel-sub">スライダーを動かして人数を調整してください</div>
+      <div class="slider-wrap">
+        <div class="slider-top">
+          <span class="slider-label">利用者数</span>
+          <div class="slider-val" id="sliderVal">30<span>人</span></div>
+        </div>
+        <input type="range" min="1" max="500" value="30" step="1" id="userSlider" oninput="updateSlider(this.value)">
+        <div class="slider-hint"><span>1人</span><span>500人</span></div>
+      </div>
+      <div class="nav">
+        <button class="btn-back" onclick="goBack()">戻る</button>
+        <button class="btn-next" onclick="showResult()">削減額を計算する →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Result -->
+  <div class="screen" id="s2">
+    <div class="result-banner">
+      <div class="result-banner-eyebrow">年間コスト削減シミュレーション結果</div>
+      <div class="result-banner-amount"><em>¥</em><span id="r-savings">0</span></div>
+      <div class="result-banner-sub" id="r-sub">月額 <strong id="r-monthly">¥0</strong> の削減</div>
+    </div>
+
+    <div class="result-grid">
+      <div class="result-tile">
+        <div class="result-tile-label">コスト削減率</div>
+        <div class="result-tile-val accent" id="r-rate">0%</div>
+      </div>
+      <div class="result-tile">
+        <div class="result-tile-label">3年間の累計削減額</div>
+        <div class="result-tile-val accent" id="r-3yr">¥0</div>
+      </div>
+    </div>
+
+    <div class="compare-wrap">
+      <div class="compare-box">
+        <div class="compare-box-label">現在のSaaS費用</div>
+        <div class="compare-box-amount" id="r-current">¥0</div>
+        <div class="compare-box-unit">/ 月（合計）</div>
+        <div id="r-tool-list"></div>
+      </div>
+      <div class="compare-box lark">
+        <div class="compare-box-label">Lark プロプラン</div>
+        <div class="compare-box-amount" id="r-lark">¥0</div>
+        <div class="compare-box-unit">/ 月（¥1,420/人）</div>
+        <div class="feat-tags">
+          <span class="feat-tag">チャット</span>
+          <span class="feat-tag">ビデオ会議</span>
+          <span class="feat-tag">ドキュメント</span>
+          <span class="feat-tag">タスク管理</span>
+          <span class="feat-tag">カレンダー</span>
+          <span class="feat-tag">メール</span>
+          <span class="feat-tag">ストレージ</span>
+          <span class="feat-tag">Base</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="r-msg"></div>
+
+    <button class="btn-restart" onclick="restart()">← もう一度シミュレートする</button>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+  let step = 0;
+  let selectedTools = {};
+  let users = 30;
+  const LARK = 1420;
+
+  document.querySelectorAll('.tool-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const id = row.dataset.id;
+      const price = parseInt(row.dataset.price);
+      if (selectedTools[id]) {
+        delete selectedTools[id];
+        row.classList.remove('selected');
+      } else {
+        selectedTools[id] = { name: row.querySelector('.tool-name').textContent, price };
+        row.classList.add('selected');
+      }
+    });
+  });
+
+  function selectInd(el) {
+    document.querySelectorAll('.ind-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function updateSlider(v) {
+    users = parseInt(v);
+    document.getElementById('sliderVal').innerHTML = v + '<span>人</span>';
+    const pct = ((v - 1) / 499 * 100).toFixed(1) + '%';
+    document.getElementById('userSlider').style.setProperty('--val', pct);
+  }
+
+  function updateProgress() {
+    for (let i = 0; i < 3; i++) {
+      const c = document.getElementById('pc' + i);
+      const l = document.getElementById('pl' + i);
+      c.className = 'prog-circle' + (i < step ? ' done' : '') + (i === step ? ' active' : '');
+      l.className = 'prog-label' + (i === step ? ' active' : '');
+      if (i < 2) {
+        document.getElementById('pline' + i).className = 'prog-line' + (i < step ? ' done' : '');
+      }
+    }
+  }
+
+  function goNext() {
+    document.getElementById('s' + step).classList.remove('active');
+    step++;
+    document.getElementById('s' + step).classList.add('active');
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goBack() {
+    document.getElementById('s' + step).classList.remove('active');
+    step--;
+    document.getElementById('s' + step).classList.add('active');
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showResult() {
+    const totalPerUser = Object.values(selectedTools).reduce((s, t) => s + t.price, 0);
+    const curM = totalPerUser * users;
+    const larkM = LARK * users;
+    const diffM = curM - larkM;
+    const diffY = diffM * 12;
+    const rate = curM > 0 ? Math.round(diffM / curM * 100) : 0;
+
+    document.getElementById('r-savings').textContent = Math.abs(diffY).toLocaleString();
+    document.getElementById('r-monthly').textContent = '¥' + Math.abs(diffM).toLocaleString();
+    document.getElementById('r-sub').innerHTML = diffM >= 0
+      ? '月額 <strong id="r-monthly">¥' + diffM.toLocaleString() + '</strong> の削減'
+      : '月額 <strong id="r-monthly">¥' + Math.abs(diffM).toLocaleString() + '</strong> の増加';
+    document.getElementById('r-rate').textContent = Math.abs(rate) + '%' + (rate < 0 ? '増' : '削減');
+    document.getElementById('r-3yr').textContent = '¥' + Math.abs(diffY * 3).toLocaleString();
+    document.getElementById('r-current').textContent = '¥' + curM.toLocaleString();
+    document.getElementById('r-lark').textContent = '¥' + larkM.toLocaleString();
+
+    const items = Object.values(selectedTools);
+    document.getElementById('r-tool-list').innerHTML = items.length
+      ? items.map(t => `<div class="item-row"><span>${t.name}</span><span>¥${(t.price * users).toLocaleString()}</span></div>`).join('')
+      : '<div style="font-size:12px;color:#bbb;margin-top:4px">（未選択）</div>';
+
+    const msgEl = document.getElementById('r-msg');
+    if (curM === 0) {
+      msgEl.innerHTML = `<div class="warn-box">ツールを1つ以上選択すると、削減額が計算されます。</div>`;
+    } else if (diffM > 0) {
+      msgEl.innerHTML = `<div class="note-box">選択したツールをLarkに統合すると、<strong>年間 ¥${diffY.toLocaleString()}</strong> のコスト削減が見込めます。チャットや会議・ドキュメントがひとつのプラットフォームにまとまり、ツール間の切り替えコストもゼロになります。</div>`;
+    } else {
+      msgEl.innerHTML = `<div class="warn-box">選択したツールの数が少ないため、今回はLarkとのコスト差が小さい結果になりました。複数のSaaSを組み合わせて使っている場合に、Larkへの統合効果が大きくなります。</div>`;
+    }
+
+    document.getElementById('s' + step).classList.remove('active');
+    step = 2;
+    document.getElementById('s2').classList.add('active');
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function restart() {
+    selectedTools = {};
+    users = 30;
+    document.querySelectorAll('.tool-row').forEach(r => r.classList.remove('selected'));
+    document.querySelectorAll('.ind-btn').forEach(b => b.classList.remove('selected'));
+    const sl = document.getElementById('userSlider');
+    sl.value = 30;
+    sl.style.setProperty('--val', '5.8%');
+    document.getElementById('sliderVal').innerHTML = '30<span>人</span>';
+    document.getElementById('s2').classList.remove('active');
+    step = 0;
+    document.getElementById('s0').classList.add('active');
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  document.getElementById('userSlider').style.setProperty('--val', '5.8%');
+</script>
+</body>
+</html>
